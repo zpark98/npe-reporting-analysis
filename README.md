@@ -30,6 +30,19 @@ It must contain a column named:
 adverse_event_term
 ```
 
+## R packages
+
+The scripts use the following R packages:
+
+```text
+DBI
+RPostgres
+broom
+dplyr
+mgcv
+readr
+```
+
 ## Script order
 
 Run the scripts from the project root in this order:
