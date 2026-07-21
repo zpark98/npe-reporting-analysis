@@ -3,10 +3,11 @@
 # Input: data/processed/trial_analysis_dataset.csv
 # Output: results/q1_* and results/q2_* CSV files
 # Data source: Trial-level analysis dataset
-# Note: These analyses describe registry reporting, not true incidence.
+# Note: These analyses describe registry-visible reporting, not true incidence.
 
 library(broom)
 library(dplyr)
+library(mgcv)
 library(readr)
 
 dir.create("results", recursive = TRUE, showWarnings = FALSE)
@@ -16,6 +17,7 @@ trial_analysis <- read_csv(
   show_col_types = FALSE
 )
 
+# RQ1: overall proportion of eligible trials reporting at least one NPE term.
 model_q1 <- glm(
   npe_any ~ 1,
   family = binomial,
@@ -51,6 +53,7 @@ q1_result_readable <- q1_result %>%
 year_check <- trial_analysis %>%
   count(primary_completion_year, sort = FALSE)
 
+# RQ2: unadjusted temporal model across trials with primary completion year.
 q2_df <- trial_analysis %>%
   filter(!is.na(primary_completion_year)) %>%
   mutate(
@@ -69,8 +72,7 @@ q2_result <- broom::tidy(
   exponentiate = TRUE
 )
 
-q2_year_summary <- trial_analysis %>%
-  filter(!is.na(primary_completion_year)) %>%
+q2_year_summary <- q2_df %>%
   group_by(primary_completion_year) %>%
   summarise(
     total_trials = n(),
@@ -79,6 +81,7 @@ q2_year_summary <- trial_analysis %>%
     .groups = "drop"
   )
 
+# Restricted modern reporting-period model.
 q2_df_restricted <- trial_analysis %>%
   filter(
     !is.na(primary_completion_year),
@@ -101,6 +104,51 @@ q2_restricted_result <- broom::tidy(
   exponentiate = TRUE
 )
 
+# Exploratory GAM sensitivity check for non-linear temporal pattern.
+gam_q2 <- mgcv::gam(
+  npe_any ~ s(primary_completion_year, k = 8),
+  family = binomial(link = "logit"),
+  data = q2_df_restricted,
+  method = "REML"
+)
+
+glm_q2_restricted_linear <- glm(
+  npe_any ~ primary_completion_year,
+  family = binomial(link = "logit"),
+  data = q2_df_restricted
+)
+
+gam_summary <- summary(gam_q2)
+gam_smooth <- as.data.frame(gam_summary$s.table)
+gam_aic <- AIC(glm_q2_restricted_linear, gam_q2) %>%
+  tibble::rownames_to_column("model")
+
+q2_gam_sensitivity_summary <- tibble::tibble(
+  n_trials = nrow(q2_df_restricted),
+  smooth_edf = gam_smooth$edf[1],
+  smooth_ref_df = gam_smooth$Ref.df[1],
+  smooth_chisq = gam_smooth$Chi.sq[1],
+  smooth_p_value = gam_smooth$`p-value`[1],
+  deviance_explained_percent = gam_summary$dev.expl * 100,
+  glm_aic = gam_aic$AIC[gam_aic$model == "glm_q2_restricted_linear"],
+  gam_aic = gam_aic$AIC[gam_aic$model == "gam_q2"]
+)
+
+png(
+  filename = "results/q2_gam_temporal_sensitivity_plot.png",
+  width = 1800,
+  height = 1400,
+  res = 220
+)
+plot(
+  gam_q2,
+  shade = TRUE,
+  residuals = FALSE,
+  xlab = "Primary completion year",
+  ylab = "Smooth effect on log-odds of NPE reporting"
+)
+dev.off()
+
 write_csv(q1_summary, "results/q1_overall_reporting_summary.csv")
 write_csv(q1_result, "results/q1_intercept_model.csv")
 write_csv(q1_result_readable, "results/q1_overall_reporting_rate_readable.csv")
@@ -108,3 +156,5 @@ write_csv(year_check, "results/year_check.csv")
 write_csv(q2_result, "results/q2_year_trend_model.csv")
 write_csv(q2_year_summary, "results/q2_year_reporting_summary.csv")
 write_csv(q2_restricted_result, "results/q2_year_trend_model_2008_2024.csv")
+write_csv(gam_aic, "results/q2_gam_vs_glm_aic.csv")
+write_csv(q2_gam_sensitivity_summary, "results/q2_gam_sensitivity_summary.csv")
