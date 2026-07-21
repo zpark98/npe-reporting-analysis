@@ -119,16 +119,16 @@ glm_q2_restricted_linear <- glm(
 )
 
 gam_summary <- summary(gam_q2)
-gam_smooth <- as.data.frame(gam_summary$s.table)
+gam_smooth <- gam_summary$s.table
 gam_aic <- AIC(glm_q2_restricted_linear, gam_q2) %>%
   tibble::rownames_to_column("model")
 
 q2_gam_sensitivity_summary <- tibble::tibble(
   n_trials = nrow(q2_df_restricted),
-  smooth_edf = gam_smooth$edf[1],
-  smooth_ref_df = gam_smooth$Ref.df[1],
-  smooth_chisq = gam_smooth$Chi.sq[1],
-  smooth_p_value = gam_smooth$`p-value`[1],
+  smooth_edf = gam_smooth[1, "edf"],
+  smooth_ref_df = gam_smooth[1, "Ref.df"],
+  smooth_chisq = gam_smooth[1, "Chi.sq"],
+  smooth_p_value = gam_smooth[1, "p-value"],
   deviance_explained_percent = gam_summary$dev.expl * 100,
   glm_aic = gam_aic$AIC[gam_aic$model == "glm_q2_restricted_linear"],
   gam_aic = gam_aic$AIC[gam_aic$model == "gam_q2"]
