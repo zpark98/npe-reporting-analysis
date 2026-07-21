@@ -105,10 +105,10 @@ q3_result_readable <- q3_result_ref %>%
       sprintf("%.2f", conf.high),
       ")"
     ),
-    p_value_formatted = if_else(
-      p.value < 0.001,
-      "<0.001",
-      sprintf("%.2f", p.value)
+    p_value_formatted = case_when(
+      p.value < 0.001 ~ "<0.001",
+      p.value < 0.01 ~ sprintf("%.3f", p.value),
+      TRUE ~ sprintf("%.2f", p.value)
     )
   ) %>%
   select(
