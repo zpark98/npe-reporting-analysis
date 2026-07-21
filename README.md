@@ -30,6 +30,8 @@ It must contain a column named:
 adverse_event_term
 ```
 
+This term list is a project input rather than an AACT export. It should be supplied locally from the curated NPE term list used for the dissertation.
+
 ## R packages
 
 The scripts use the following R packages:
@@ -41,6 +43,7 @@ broom
 dplyr
 mgcv
 readr
+stringr
 ```
 
 ## Script order
